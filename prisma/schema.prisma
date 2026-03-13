@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Post {
+  id          String        @id @default(cuid())
+  platformId  String        // ID sur la plateforme d'origine
+  platform    String        // INSTAGRAM, TIKTOK, YOUTUBE, LINKEDIN
+  title       String?
+  content     String?
+  transcript  String?       // Transcription du contenu vidéo (auto-captions)
+  mediaType   String        // VIDEO, IMAGE, TEXT, CAROUSEL
+  mediaUrl    String?
+  thumbnailUrl String?
+  publishedAt DateTime
+  url         String?
+  metrics     PostMetrics[]
+  insights    AIInsight[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([platform, platformId])
+  @@index([platform])
+  @@index([publishedAt])
+}
+
+model PostMetrics {
+  id             String   @id @default(cuid())
+  postId         String
+  post           Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  views          Int      @default(0)
+  likes          Int      @default(0)
+  comments       Int      @default(0)
+  shares         Int      @default(0)
+  saves          Int      @default(0)
+  engagementRate Float    @default(0)
+  fetchedAt      DateTime @default(now())
+
+  @@index([postId])
+  @@index([fetchedAt])
+}
+
+model PromptDNA {
+  id              String              @id @default(cuid())
+  version         Int
+  platform        String?             // null = CROSS_PLATFORM
+  category        String              // SCRIPT, POST_CAPTION, HOOK, CTA, HASHTAGS
+  promptTemplate  String
+  rules           String              // JSON
+  confidence      Float               @default(0)
+  status          String              @default("TESTING") // ACTIVE, TESTING, DEPRECATED, ROLLED_BACK
+  parentVersionId String?
+  parentVersion   PromptDNA?          @relation("PromptVersionChain", fields: [parentVersionId], references: [id])
+  childVersions   PromptDNA[]         @relation("PromptVersionChain")
+  mutations       PromptMutation[]
+  performances    PromptPerformance[]
+  exports         ContentBrainExport[]
+  createdAt       DateTime            @default(now())
+  activatedAt     DateTime?
+
+  @@index([status])
+  @@index([category])
+  @@index([platform])
+}
+
+model PromptMutation {
+  id               String    @id @default(cuid())
+  promptDNAId      String
+  promptDNA        PromptDNA @relation(fields: [promptDNAId], references: [id], onDelete: Cascade)
+  mutationType     String    // RULE_ADDED, RULE_REMOVED, RULE_MODIFIED, TONE_SHIFT, FORMAT_CHANGE, HOOK_PATTERN_UPDATE
+  beforeSnippet    String?
+  afterSnippet     String?
+  reason           String
+  sourceInsightIds String?   // JSON array of insight IDs
+  createdAt        DateTime  @default(now())
+
+  @@index([promptDNAId])
+}
+
+model PromptPerformance {
+  id                String    @id @default(cuid())
+  promptDNAId       String
+  promptDNA         PromptDNA @relation(fields: [promptDNAId], references: [id], onDelete: Cascade)
+  postsGenerated    Int       @default(0)
+  avgEngagementRate Float     @default(0)
+  avgViews          Float     @default(0)
+  avgLikes          Float     @default(0)
+  period            String    // WEEK, MONTH
+  measuredAt        DateTime  @default(now())
+
+  @@index([promptDNAId])
+}
+
+model AIInsight {
+  id        String   @id @default(cuid())
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
+  type      String   // POST_ANALYSIS, TREND, RECOMMENDATION, DNA_FUEL
+  content   String   // JSON
+  score     Float    @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([postId])
+}
+
+model ContentBrainExport {
+  id               String              @id @default(cuid())
+  promptDNAId      String?
+  promptDNA        PromptDNA?          @relation(fields: [promptDNAId], references: [id])
+  promptDNAVersion Int
+  insightIds       String              // JSON array
+  payload          String              // JSON
+  status           String              @default("PENDING") // PENDING, SENT, ACKNOWLEDGED
+  syncs            ContentBrainSync[]
+  exportedAt       DateTime            @default(now())
+
+  @@index([status])
+}
+
+model ContentBrainSync {
+  id                   String             @id @default(cuid())
+  exportId             String
+  export               ContentBrainExport @relation(fields: [exportId], references: [id], onDelete: Cascade)
+  contentBrainResponse String?            // JSON
+  promptsUpdated       String?            // JSON
+  status               String             @default("PENDING") // SUCCESS, PARTIAL, FAILED
+  syncedAt             DateTime           @default(now())
+
+  @@index([exportId])
+}
