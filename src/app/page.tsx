@@ -22,6 +22,7 @@ export default function DashboardPage() {
     insights,
     selectedPlatform,
     selectedPeriod,
+    customDateRange,
     isLoading,
     fetchDashboardData,
   } = useDashboardStore();
@@ -42,7 +43,7 @@ export default function DashboardPage() {
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <PerformanceChart posts={posts} selectedPlatform={selectedPlatform} selectedPeriod={selectedPeriod} />
+              <PerformanceChart posts={posts} selectedPlatform={selectedPlatform} selectedPeriod={selectedPeriod} customDateRange={customDateRange} />
             </div>
             <div>
               <TopPostsRanking posts={posts} />

@@ -17,7 +17,19 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { format, subDays, startOfDay, isSameDay } from 'date-fns';
+import {
+  format,
+  subDays,
+  startOfDay,
+  eachDayOfInterval,
+  eachWeekOfInterval,
+  eachMonthOfInterval,
+  isSameDay,
+  isSameWeek,
+  isSameMonth,
+  differenceInDays,
+  parseISO,
+} from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Eye, Heart, MessageCircle, Share2, TrendingUp } from 'lucide-react';
 
@@ -35,6 +47,7 @@ interface Props {
   posts: PostWithMetrics[];
   selectedPlatform: Platform | 'ALL';
   selectedPeriod: Period;
+  customDateRange?: { from: string; to: string } | null;
 }
 
 function getMetricValue(post: PostWithMetrics, metric: MetricKey): number {
@@ -46,51 +59,92 @@ function buildChartData(
   posts: PostWithMetrics[],
   selectedPlatform: Platform | 'ALL',
   selectedPeriod: Period,
-  metric: MetricKey
+  metric: MetricKey,
+  customDateRange?: { from: string; to: string } | null
 ) {
-  const days =
-    selectedPeriod === '7d' ? 7
-    : selectedPeriod === '30d' ? 30
-    : selectedPeriod === '90d' ? 90
-    : selectedPeriod === '1y' ? 365
-    : 60;
-
-  const data: Record<string, unknown>[] = [];
   const platforms: Platform[] =
     selectedPlatform === 'ALL'
       ? ['INSTAGRAM', 'TIKTOK', 'YOUTUBE', 'LINKEDIN']
       : [selectedPlatform];
 
   const metricDef = METRICS.find((m) => m.key === metric)!;
+  const now = startOfDay(new Date());
 
-  for (let i = days; i >= 0; i--) {
-    const day = startOfDay(subDays(new Date(), i));
-    const dayLabel =
-      days <= 30
-        ? format(day, 'dd MMM', { locale: fr })
-        : days <= 90
-          ? format(day, 'dd/MM', { locale: fr })
-          : format(day, 'MMM yy', { locale: fr });
+  // Determine the date range
+  let startDate: Date;
+  let endDate: Date = now;
 
-    const entry: Record<string, number | string> = { date: dayLabel };
+  if (selectedPeriod === 'custom' && customDateRange) {
+    startDate = startOfDay(parseISO(customDateRange.from));
+    endDate = startOfDay(parseISO(customDateRange.to));
+  } else if (selectedPeriod === 'all') {
+    // Derive from actual data
+    if (posts.length === 0) {
+      startDate = subDays(now, 60);
+    } else {
+      const dates = posts.map((p) => new Date(p.publishedAt).getTime());
+      startDate = startOfDay(new Date(Math.min(...dates)));
+    }
+  } else {
+    const days = selectedPeriod === '7d' ? 7
+      : selectedPeriod === '30d' ? 30
+      : selectedPeriod === '90d' ? 90
+      : selectedPeriod === '1y' ? 365
+      : 60;
+    startDate = subDays(now, days);
+  }
+
+  const totalDays = differenceInDays(endDate, startDate);
+
+  // Choose bucket granularity based on span
+  type Bucket = { date: Date; label: string };
+  let buckets: Bucket[];
+  let matchFn: (postDate: Date, bucketDate: Date) => boolean;
+
+  if (totalDays <= 45) {
+    // Daily
+    buckets = eachDayOfInterval({ start: startDate, end: endDate }).map((d) => ({
+      date: d,
+      label: format(d, 'dd MMM', { locale: fr }),
+    }));
+    matchFn = isSameDay;
+  } else if (totalDays <= 180) {
+    // Weekly
+    buckets = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }).map((d) => ({
+      date: d,
+      label: format(d, 'dd/MM', { locale: fr }),
+    }));
+    matchFn = (postDate, bucketDate) => isSameWeek(postDate, bucketDate, { weekStartsOn: 1 });
+  } else {
+    // Monthly
+    buckets = eachMonthOfInterval({ start: startDate, end: endDate }).map((d) => ({
+      date: d,
+      label: format(d, 'MMM yy', { locale: fr }),
+    }));
+    matchFn = isSameMonth;
+  }
+
+  const data: Record<string, unknown>[] = buckets.map((bucket) => {
+    const entry: Record<string, number | string> = { date: bucket.label };
 
     for (const platform of platforms) {
-      const dayPosts = posts.filter(
-        (p) => p.platform === platform && isSameDay(new Date(p.publishedAt), day)
+      const bucketPosts = posts.filter(
+        (p) => p.platform === platform && matchFn(new Date(p.publishedAt), bucket.date)
       );
 
-      if (dayPosts.length === 0) {
+      if (bucketPosts.length === 0) {
         entry[platform] = 0;
       } else if (metricDef.aggregate === 'sum') {
-        entry[platform] = dayPosts.reduce((sum, p) => sum + getMetricValue(p, metric), 0);
+        entry[platform] = bucketPosts.reduce((sum, p) => sum + getMetricValue(p, metric), 0);
       } else {
-        const avg = dayPosts.reduce((sum, p) => sum + getMetricValue(p, metric), 0) / dayPosts.length;
+        const avg = bucketPosts.reduce((sum, p) => sum + getMetricValue(p, metric), 0) / bucketPosts.length;
         entry[platform] = Math.round(avg * 100) / 100;
       }
     }
 
-    data.push(entry);
-  }
+    return entry;
+  });
+
   return { data, platforms };
 }
 
@@ -135,12 +189,13 @@ function ChartContent({
   posts,
   selectedPlatform,
   selectedPeriod,
+  customDateRange,
   height,
   metric,
 }: Props & { height: string; metric: MetricKey }) {
   const { data, platforms } = useMemo(
-    () => buildChartData(posts, selectedPlatform, selectedPeriod, metric),
-    [posts, selectedPlatform, selectedPeriod, metric]
+    () => buildChartData(posts, selectedPlatform, selectedPeriod, metric, customDateRange),
+    [posts, selectedPlatform, selectedPeriod, metric, customDateRange]
   );
 
   const metricDef = METRICS.find((m) => m.key === metric)!;
@@ -254,7 +309,7 @@ function ChartContent({
   );
 }
 
-export function PerformanceChart({ posts, selectedPlatform, selectedPeriod }: Props) {
+export function PerformanceChart({ posts, selectedPlatform, selectedPeriod, customDateRange }: Props) {
   const [metric, setMetric] = useState<MetricKey>('views');
 
   const metricDef = METRICS.find((m) => m.key === metric)!;
@@ -271,6 +326,7 @@ export function PerformanceChart({ posts, selectedPlatform, selectedPeriod }: Pr
               posts={posts}
               selectedPlatform={selectedPlatform}
               selectedPeriod={selectedPeriod}
+              customDateRange={customDateRange}
               height="100%"
               metric={metric}
             />
@@ -284,6 +340,7 @@ export function PerformanceChart({ posts, selectedPlatform, selectedPeriod }: Pr
           posts={posts}
           selectedPlatform={selectedPlatform}
           selectedPeriod={selectedPeriod}
+          customDateRange={customDateRange}
           height="16rem"
           metric={metric}
         />
