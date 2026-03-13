@@ -45,10 +45,11 @@ ${JSON.stringify(currentRules, null, 2)}
 Voici les derniers insights du dashboard :
 ${JSON.stringify(insights.map((i) => JSON.parse(i.content)), null, 2)}
 
-Voici la performance des 30 derniers posts :
+Voici la performance des 30 derniers posts (avec transcripts vidéo quand disponibles — utilise-les pour analyser les hooks, la structure narrative, le ton) :
 ${JSON.stringify(recentPosts.map((p) => ({
   platform: p.platform,
   title: p.title,
+  transcript: p.transcript?.slice(0, 300) || null,
   views: p.metrics[0]?.views,
   likes: p.metrics[0]?.likes,
   engagement: p.metrics[0]?.engagementRate,

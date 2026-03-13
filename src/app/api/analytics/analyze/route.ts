@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     platform: p.platform,
     title: p.title,
     content: p.content?.slice(0, 200),
+    transcript: p.transcript?.slice(0, 500) || null,
     mediaType: p.mediaType,
     metrics: {
       views: p.metrics[0]?.views ?? 0,
@@ -41,13 +42,13 @@ export async function POST(request: Request) {
     messages: [
       {
         role: 'user',
-        content: `Analyse ces posts de réseaux sociaux pour le créateur "TibTalks" (business/tech).
-Pour chaque post, génère un insight. Réponds en JSON uniquement :
+        content: `Analyse ces posts de réseaux sociaux pour le créateur "TibTalks" (business/tech/crypto).
+Pour chaque post, génère un insight. Utilise les transcripts vidéo quand ils sont disponibles pour analyser le contenu du script (hooks, structure, ton, sujets abordés).
 
 Posts :
 ${JSON.stringify(postsData, null, 2)}
 
-Format de réponse :
+Réponds en JSON uniquement au format :
 {
   "insights": [
     {
@@ -56,7 +57,7 @@ Format de réponse :
       "content": {
         "title": "titre court",
         "summary": "résumé en 1-2 phrases",
-        "details": "détails",
+        "details": "détails (inclure l'analyse du script/transcript si disponible)",
         "recommendations": ["reco1", "reco2"]
       },
       "score": 0-100
@@ -64,7 +65,7 @@ Format de réponse :
   ]
 }
 
-Inclus au moins : 2 analyses de posts, 1 tendance, 1 recommandation, 1 DNA_FUEL.`,
+Inclus au moins : 2 analyses de posts (avec analyse du transcript si dispo), 1 tendance, 1 recommandation, 1 DNA_FUEL.`,
       },
     ],
   });
