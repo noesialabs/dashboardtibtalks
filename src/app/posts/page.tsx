@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import type { PostWithMetrics } from '@/types/social';
 import { PLATFORM_COLORS, PLATFORM_NAMES } from '@/types/social';
-import { Eye, Heart, MessageCircle, Share2, Bookmark, Calendar } from 'lucide-react';
+import { Eye, Heart, MessageCircle, Share2, Bookmark, Calendar, FileText } from 'lucide-react';
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
@@ -116,9 +116,22 @@ export default function PostsPage() {
                         {new Date(post.publishedAt).toLocaleDateString('fr-FR')}
                       </span>
                     </div>
-                    <h3 className="text-white font-medium text-sm truncate">{post.title || 'Sans titre'}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-white font-medium text-sm truncate">{post.title || 'Sans titre'}</h3>
+                      {post.transcript && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 text-[10px] font-medium flex-shrink-0">
+                          <FileText className="w-3 h-3" />
+                          Transcript
+                        </span>
+                      )}
+                    </div>
                     {post.content && post.content !== post.title && (
                       <p className="text-white/40 text-xs mt-1 truncate">{post.content}</p>
+                    )}
+                    {post.transcript && (
+                      <p className="text-white/30 text-xs mt-1 truncate italic">
+                        &quot;{post.transcript.slice(0, 120)}...&quot;
+                      </p>
                     )}
                   </div>
 

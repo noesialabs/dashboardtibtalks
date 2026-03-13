@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     platform: p.platform,
     title: p.title,
     content: p.content?.slice(0, 200),
-    transcript: p.transcript?.slice(0, 500) || null,
+    transcript: p.transcript || null,
     mediaType: p.mediaType,
     metrics: {
       views: p.metrics[0]?.views ?? 0,

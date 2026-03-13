@@ -49,7 +49,7 @@ Voici la performance des 30 derniers posts (avec transcripts vidéo quand dispon
 ${JSON.stringify(recentPosts.map((p) => ({
   platform: p.platform,
   title: p.title,
-  transcript: p.transcript?.slice(0, 300) || null,
+  transcript: p.transcript || null,
   views: p.metrics[0]?.views,
   likes: p.metrics[0]?.likes,
   engagement: p.metrics[0]?.engagementRate,
