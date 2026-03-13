@@ -117,9 +117,12 @@ async function fetchYouTubeTranscripts(token: string, forceRefresh: boolean) {
       const items = (await runAndPoll(ACTORS.YOUTUBE, { urls: batch, language: 'fr' }, token)) as YTTranscriptItem[];
 
       for (const item of items) {
-        if (!item.videoId || !item.captions || item.captions.length === 0) continue;
+        if (!item.videoId || !item.captions || !Array.isArray(item.captions) || item.captions.length === 0) continue;
 
-        const fullText = decodeHtmlEntities(item.captions.map((s) => s.text).join(' '));
+        // Captions can be strings or objects with .text
+        const fullText = decodeHtmlEntities(
+          item.captions.filter((s) => s).map((s) => typeof s === 'string' ? s : (s as { text: string }).text || '').filter(Boolean).join(' ')
+        );
         if (!fullText.trim()) continue;
 
         const post = batchPosts.find((p) => p.platformId === item.videoId);

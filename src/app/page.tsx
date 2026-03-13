@@ -21,6 +21,7 @@ export default function DashboardPage() {
     heatmapData,
     insights,
     selectedPlatform,
+    selectedPeriod,
     isLoading,
     fetchDashboardData,
   } = useDashboardStore();
@@ -41,7 +42,7 @@ export default function DashboardPage() {
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <PerformanceChart posts={posts} selectedPlatform={selectedPlatform} />
+              <PerformanceChart posts={posts} selectedPlatform={selectedPlatform} selectedPeriod={selectedPeriod} />
             </div>
             <div>
               <TopPostsRanking posts={posts} />
